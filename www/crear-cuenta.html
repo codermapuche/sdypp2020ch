@@ -1,0 +1,83 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>BlockchaiNN</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="../assets/css/main.css" />
+		<link rel="shortcut icon" href="../images/logo.png" type="image/x-icon"/>
+		<noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+		<div class="wrapper">
+			<section class="main">
+				<h2>Crear cuenta</h2>
+				<form method="post" id="crear">
+					<div class="fields">
+						<div class="field">
+							<div id="message-box"></div>
+							<label>Clave privada:</label>
+							<input type="password" id="privateKey">
+						</div>
+					</div>
+					<ul class="actions special">
+						<input type="submit" value="Crear">
+					</ul>
+				</form>
+				<footer>					
+					<ul class="actions">
+						<li><a href="login.html">Iniciar sesion</a></li>
+					</ul>		
+				</footer>
+			</section>
+		</div>
+
+		<!-- Scripts -->
+		<script>
+			if ('addEventListener' in window) {
+				window.addEventListener('load', function() { 
+					document.body.className = document.body.className.replace(/\bis-preload\b/, ''); 
+				});
+				
+				document.body.className += (navigator.userAgent.match(/(MSIE|rv:11\.0)/) ? ' is-ie' : '');
+			}
+		</script>
+
+		<script src="assets/js/ui.js"></script>
+		<script>
+			const bcSdypp = new blockchain('https://sdypp.craving.com.ar/api/back/'),
+						addForm = document.getElementById('crear'),
+						messageBox = document.getElementById('message-box'),
+						privateKey = document.getElementById('privateKey');
+
+			addForm.addEventListener('submit', function(evt) {
+				evt.stopPropagation();
+				evt.preventDefault();
+				messageBox.classList.remove('success');
+
+					if(privateKey.value.length<8){
+							messageBox.classList.add('error');
+						 	messageBox.innerHTML = 'Su clave debe tener al menos 8 caracteres';
+						 	return;
+					}
+				messageBox.classList.remove('error');
+				addForm.classList.add('loading');
+				bcSdypp.addAccount(privateKey.value)
+					.then(function(data) {
+						var bcu = data[0].generated_keys[0];
+						addForm.classList.remove('loading');
+						addForm.innerHTML = 'Tu BCU es: <input type="text" readonly value="' + bcu + '">' +
+									'<ul class="actions special">' +
+										'<input type="button" value="Copiar" id="copy">' +
+										'</ul> ';
+							document.getElementById('copy').addEventListener('click', function(e,bcu){
+								e.stopPropagation();
+								e.preventDefault();
+								addForm.querySelector('input').select();
+								document.execCommand("copy");
+							});
+					});
+			});
+		</script>
+	</body>
+</html>

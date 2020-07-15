@@ -1,0 +1,237 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>BlockchaiNN</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="shortcut icon" href="../images/logo.png" type="image/x-icon"/>
+		<link rel="stylesheet" href="../assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div class="wrapper">	
+				<section class="main">
+					<ul class="actions">
+						<li><a href="crear-cuenta.html">Crear cuenta</a></li>
+						<li><a href="login.html">Iniciar sesión</a></li>
+						<li><a href="miner.html">Minero</a></li>
+					</ul>
+					<ul class="actions tabs">
+						<li><a href="tab-cuentas" class="tab current"><h2>Cuentas</h2></a></li>
+						<li><a href="tab-pendientes" class="tab"><h2>Pendientes</h2></a></li>
+						<li><a href="tab-transacciones" class="tab"><h2>Historial</h2></a></li>
+					</ul>
+				</section>
+								
+				<section class="main tab" id="tab-cuentas">
+					<div class="table-wrapper">
+						<table>
+							<thead>
+								<tr>
+									<th>CUENTA</th>
+									<th>SALDO</th>
+								</tr>
+							</thead>
+							<tbody id="cuentas"></tbody>
+						</table>
+					</div>
+				</section>
+				
+				<section class="main tab hidden" id="tab-pendientes">
+					<div class="table-wrapper">
+						<table>
+							<thead>
+								<tr>
+									<th>ORIGEN</th>
+									<th>DESTINO</th>
+									<th>IMPORTE</th>
+								</tr>
+							</thead>
+							<tbody id="tranfers"></tbody>
+						</table>
+					</div>
+				</section>
+			
+				<section class="main tab hidden" id="tab-transacciones"></section>			
+			</div>
+
+		<!-- Scripts -->
+			<script>
+				if ('addEventListener' in window) {
+					window.addEventListener('load', function() { document.body.className = document.body.className.replace(/\bis-preload\b/, ''); });
+					document.body.className += (navigator.userAgent.match(/(MSIE|rv:11\.0)/) ? ' is-ie' : '');
+				}
+			</script>
+			
+		<script src="assets/js/ui.js"></script>
+		<script>
+			const bcSdypp = new blockchain('https://sdypp.craving.com.ar/api/back/');	
+			// bcSdypp.getAccounts().then(console.log);
+			// bcSdypp.addAccount({ name: 'juan' }).then(console.log);
+			
+			;(function displayCuentas() {
+				const div = document.getElementById('cuentas'),
+							tpl = '[cuentas]' +
+										'<tr>' +
+											'<td class="bcu">{id}</td>' +
+											'<td class="money"><span>{saldo}</span></td>' +
+										'</tr>' +
+										'[/cuentas]';
+								
+				function loadAndDisplay() {
+					bcSdypp.getAccounts()
+						.then(function(acc) {
+							var newHTML = interpolate(tpl, { cuentas: acc });
+							if (newHTML != div.innerHTML) {
+								div.innerHTML = newHTML;							
+							}
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();
+			
+			;(function displayTranfers() {
+				const div = document.getElementById('tranfers'),
+							tpl = '[tranferencias]' +
+										'<tr>' +										
+											'<td class="bcu">{origen}</td>' +
+											'<td class="bcu">{destino}</td>' +
+											'<td class="money"><span>{importe}</span></td>' +
+										'</tr>' +
+										'[/tranferencias]';
+								
+				function loadAndDisplay() {
+					bcSdypp.getTranfers("")
+						.then(function(tranfers) {							
+							tranfers = tranfers.map(function(tranfer) {
+								tranfer.origen = '*-' + tranfer.origen.split('-').pop();
+								tranfer.destino = '*-' + tranfer.destino.split('-').pop();
+								
+								return tranfer;
+							});
+							
+							var newHTML = interpolate(tpl, { tranferencias: tranfers });
+							if ( newHTML != div.innerHTML ) {
+								div.innerHTML = newHTML;							
+							}
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();
+						
+			;(function displayBlockchain() {
+				const div = document.getElementById('tab-transacciones'),
+							tpl = 	'[blockchain]' +
+									'<div class="table-wrapper">' +
+										'<table>' +
+											'<thead>' +
+												'<tr>' +
+													'<th>#</th>' +
+													'<th>FECHA</th>' +
+													'<th>NONCE</th>' +
+													'<th>HASH</th>' +
+												'</tr>' +
+											'</thead>' +
+											'<tbody>' +
+												'<tr>' +
+													'<td>{index}</td>' +
+													'<td>{fecha}</td>' +
+													'<td>{nonce}</td>' +
+													'<td>{hash}</td>' +
+												'</tr>' +
+											'</tbody>' +
+										'</table>' +									
+										'<table>' +
+											'<thead>' +
+												'<tr>' +
+													'<th>ORIGEN</th>' +
+													'<th>DESTINO</th>' +
+													'<th>IMPORTE</th>' +
+												'</tr>' +
+											'</thead>' +
+											'<tbody>' +
+												'[tranfers]' +
+												'<tr>' +
+													'<td class="bcu">{origen}</td>' +
+													'<td class="bcu">{destino}</td>' +
+													'<td class="money"><span>{importe}</span></td>' +
+												'</tr>' +
+												'[/tranfers]' +
+											'</tbody>' +
+										'</table>' +
+									'</div>' +
+									'[/blockchain]';
+								
+				function loadAndDisplay() {
+					bcSdypp.getBlockchain("")
+						.then(function(blockchain) {					
+							blockchain = blockchain.map(function(bc) {
+								bc.tranfers = bc.tranfers.map(function(tranfer) {
+									var trObj = {};
+									trObj.origen = '*-' + tranfer[0].split('-').pop();
+									trObj.destino = '*-' + tranfer[1].split('-').pop();
+									trObj.importe = tranfer[2];									
+									return trObj;
+								});
+								
+								bc.fecha = (new Date(bc.fecha)).toISOString();
+								
+								return bc;
+							});
+
+							var newHTML = interpolate(tpl, { blockchain: blockchain });
+							if ( newHTML != div.innerHTML ) {
+								div.innerHTML = newHTML;							
+							}
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();
+
+			document.querySelectorAll('a.tab')
+				.forEach(function(tab) {
+					tab.addEventListener('click', function(evt) {
+						evt.preventDefault();
+						
+						document.querySelectorAll('.main.tab')
+							.forEach(function(tabSection) {
+								tabSection.classList.add('hidden');
+							});
+							
+						document.querySelectorAll('a.tab')
+							.forEach(function(tabSection) {
+								tabSection.classList.remove('current');
+							});
+							
+						document.querySelector('.main.tab#' + tab.getAttribute('href'))
+							.classList.remove('hidden');
+							
+						tab.classList.add('current');							
+					});
+				});
+		</script>
+	</body>
+</html>

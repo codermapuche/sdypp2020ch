@@ -1,0 +1,224 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>BlockchaiNN</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="shortcut icon" href="../images/logo.png" type="image/x-icon"/>
+		<link rel="stylesheet" href="../assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+		<!-- Wrapper -->
+			<div class="wrapper">
+				<section class="main">
+					<ul class="actions">
+						<li><a href="index.html">Home</a></li>
+						<li><a href="login.html">Iniciar sesión</a></li>
+						<li><a href="#" onclick="mining('cc45c233b0d4388f97b9cc790be1ec662d53f8ae4ca4fe422992327d9d0ea4e4', 32, 0);">Benchmark</a></li>
+					</ul>
+				</section>
+
+				<section class="main tab">
+					<div class="table-wrapper">
+						<table>
+							<thead>
+								<tr>
+									<th>#</th>
+									<th>FECHA</th>
+									<th>PREFIJO</th>
+									<th>HASH</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td data-st="index"></td>
+									<td data-st="fecha"></td>
+									<td data-st="prefijo"></td>
+									<td data-st="hash"></td>
+								</tr>
+							</tbody>
+						</table>
+
+						<table class="mining">
+							<thead>
+								<tr>
+									<th>VELOCIDAD</th>
+									<th>NONCE</th>
+									<th>RESULTADO</th>
+								</tr>
+							</thead>
+							<tbody>
+								<tr>
+									<td data-st="speed"></td>
+									<td data-st="nonce"></td>
+									<td data-st="result"></td>
+								</tr>
+							</tbody>
+						</table>
+
+						<table>
+							<thead>
+								<tr>
+									<th>ORIGEN</th>
+									<th>DESTINO</th>
+									<th>IMPORTE</th>
+								</tr>
+							</thead>
+							<tbody id="tranfers"></tbody>
+						</table>
+					</div>
+				</section>
+			</div>
+
+		<!-- Scripts -->
+			<script>
+				if ('addEventListener' in window) {
+					window.addEventListener('load', function() { document.body.className = document.body.className.replace(/\bis-preload\b/, ''); });
+					document.body.className += (navigator.userAgent.match(/(MSIE|rv:11\.0)/) ? ' is-ie' : '');
+				}
+			</script>
+
+		<script src="assets/js/ui.js"></script>
+		<script>
+			const bcSdypp = new blockchain('https://sdypp.craving.com.ar/api/miner/');
+
+			function digestMessage(message) {
+				const encoder = new TextEncoder(),
+							data = encoder.encode(message);
+
+				return crypto.subtle.digest('SHA-256', data)
+					.then(function(hashBuffer) {
+						const hashArray = Array.from(new Uint8Array(hashBuffer));	
+						return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+					});
+			}
+
+			function mining(hash, prefix, next, t0) {
+				t0 || (t0 = performance.now());
+				return digestMessage(next + '.' + hash)
+					.then(function(result) {	
+						var t1 = performance.now(),
+								found = result.indexOf('0'.repeat(prefix)) == 0;
+						
+						if ((next % 100 == 0) || found) {
+							document.querySelectorAll('[data-st="nonce"]')
+								.forEach(function(st) {
+									st.innerText = next;
+								});
+
+							document.querySelectorAll('[data-st="result"]')
+								.forEach(function(st) {
+									st.innerText = result;
+								});
+
+							document.querySelectorAll('[data-st="speed"]')
+								.forEach(function(st) {
+									st.innerText = Math.round(1000 / ((t1 - t0) / next)) + '/s';
+								});
+						}
+						
+						if (!found) {
+							return mining(hash, prefix, next + 1, t0);	
+						}
+						
+						return next;
+					});
+			}
+
+			;(function displayCuentas() {
+				const div = document.getElementById('tranfers'),
+							tpl = '[tranfers]' +
+										'<tr>' +
+											'<td class="bcu">{origen}</td>' +
+											'<td class="bcu">{destino}</td>' +
+											'<td class="money"><span>{importe}</span></td>' +
+										'</tr>' +
+										'[/tranfers]';
+
+				function loadAndDisplay() {
+					document.querySelector('.mining [data-st="nonce"]').classList.remove('success');
+					
+					bcSdypp.minerGetCommit()
+						.then(function(commit) {		
+							if (!commit.hash) {
+								commit = {
+									tranfers: [],
+									index: '-',
+									challenge: '-',
+									hash: ''
+								}
+							}	
+
+							var newHTML = interpolate(tpl, {
+								tranfers: commit.tranfers.map(function(tr) {
+									return { origen: tr[0], destino: tr[1], importe: tr[2] }
+								})
+							});
+
+							if (newHTML != div.innerHTML) {
+								div.innerHTML = newHTML;
+							}
+
+							document.querySelectorAll('[data-st="index"]')
+								.forEach(function(st) {
+									st.innerText = commit.index;
+								});
+
+							document.querySelectorAll('[data-st="fecha"]')
+								.forEach(function(st) {
+									st.innerText = (new Date()).toISOString();
+								});
+
+							document.querySelectorAll('[data-st="prefijo"]')
+								.forEach(function(st) {
+									st.innerText = commit.challenge;
+								});
+
+							document.querySelectorAll('[data-st="hash"]')
+								.forEach(function(st) {
+									st.innerText = commit.hash;
+								});
+
+							document.querySelectorAll('[data-st="nonce"]')
+								.forEach(function(st) {
+									st.innerText = '-';
+								});
+
+							document.querySelectorAll('[data-st="result"]')
+								.forEach(function(st) {
+									st.innerText = '-';
+								});
+
+							document.querySelectorAll('[data-st="speed"]')
+								.forEach(function(st) {
+									st.innerText = '-';
+								});
+	
+							if (!commit.hash) {
+								return;
+							}	
+
+							return mining(commit.hash, Number(commit.challenge), 0)								
+								.then(function(nonce) {
+									document.querySelector('.mining [data-st="nonce"]').classList.add('success');
+									console.log('Nonce encontrado! ' + nonce);
+									return bcSdypp.minerPostCommit({
+										nonce: nonce,
+										hash: commit.hash
+									});
+								});
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 10 * 1000);
+						});
+				}
+
+				loadAndDisplay();
+			})();
+		</script>
+	</body>
+</html>

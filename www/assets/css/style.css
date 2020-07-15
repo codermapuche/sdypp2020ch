@@ -1,0 +1,11 @@
+.inicio-sesion{
+    display: block;
+    width: 40vw;
+}
+
+.inicio-sesion > form{
+    display: block;
+    width: 20vw;
+    border:1px solid blue;
+    text-align: center;
+}

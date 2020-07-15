@@ -1,0 +1,82 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>BlockchaiNN</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="shortcut icon" href="../images/logo.png" type="image/x-icon"/>
+		<link rel="stylesheet" href="../assets/css/main.css" />
+		<noscript><link rel="stylesheet" href="../assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<div class="wrapper">
+			<section class="main">
+				<h2>Iniciar sesion</h2>
+				<form method="post" id="login">
+					<div id="message-box"></div>
+					<div class="fields">
+						<div class="field">
+							<label>BCU:</label>
+							<input type="text" id="bcu">
+						</div>
+						<div class="field">
+							<label>Clave privada:</label>
+							<input type="password" id="privateKey">
+						</div>
+					</div>
+					<ul class="actions special">
+						<input type="submit" value="Iniciar">
+					</ul>
+				</form>
+				<footer>
+					<ul class="actions">
+						<li><a href="crear-cuenta.html">Crear cuenta</a></li>
+					</ul>					
+				</footer>
+			</section>
+		</div>
+
+		<script>
+			if ('addEventListener' in window) {
+				window.addEventListener('load', function() { document.body.className = document.body.className.replace(/\bis-preload\b/, ''); });
+				document.body.className += (navigator.userAgent.match(/(MSIE|rv:11\.0)/) ? ' is-ie' : '');
+			}
+		</script>
+
+		<script src="assets/js/ui.js"></script>
+		<script>
+			const bcSdypp = new blockchain('https://sdypp.craving.com.ar/api/back/'),
+						loginForm = document.getElementById('login'),
+						messageBox = document.getElementById('message-box');
+			
+			bcSdypp.logoutAccount();			
+			loginForm.addEventListener('submit', function(evt) {
+				evt.stopPropagation();
+				evt.preventDefault();
+
+				loginForm.classList.add('loading');
+				messageBox.classList.remove('error');
+				messageBox.innerHTML = '';
+				
+				bcSdypp.loginAccount(document.getElementById('bcu').value.toLowerCase(),
+														 document.getElementById('privateKey').value)
+					.then(function(data) {
+						if (data.length == 0) {
+							messageBox.classList.add('error');
+							messageBox.innerHTML = 'El BCU o la clave son invalidas.';
+							return;
+						}
+
+						var acc = data[0];
+						localStorage.setItem('bc.token', acc.token);
+						localStorage.setItem('bc.bcu', acc.id);
+						window.location.href = '/main.html';
+					})
+					.then(function(data) {
+						loginForm.classList.remove('loading');
+					});
+			});
+		</script>
+	</body>
+</html>

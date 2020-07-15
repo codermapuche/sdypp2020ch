@@ -1,0 +1,2 @@
+FROM bitnami/rabbitmq
+EXPOSE 15672 5672 4369

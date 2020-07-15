@@ -1,0 +1,161 @@
+version: '3'
+services:
+  # Frontend static
+  front.balancer:
+    image: "front-balancer:latest"
+    hostname: front_balancer
+    ports:
+      - "12000:80"
+    links:
+      - front.static.1
+      - front.static.2
+
+  front.static.1:
+    image: "front-static:latest"
+    hostname: front_static_1
+    volumes: 
+      - "./www:/home/www"
+      
+  front.static.2:
+    image: "front-static:latest"
+    hostname: front_static_2
+    volumes: 
+      - "./www:/home/www"
+      
+  # Backend rest
+  back.balancer:
+    image: "back-balancer:latest"
+    hostname: back_balancer
+    ports:
+      - "12001:80"
+    links:
+      - back.rest.1
+      - back.rest.2
+
+  back.rest.1:
+    image: "back-rest:latest"
+    build:
+      context: /home/paw/sdypp/api
+      dockerfile: /home/paw/sdypp/docker-images/backend-rest/Dockerfile
+    hostname: back_rest_1
+    links:
+      - storage.db.1
+      - mq.balancer
+
+  back.rest.2:
+    image: "back-rest:latest"
+    build:
+      context: /home/paw/sdypp/api
+      dockerfile: /home/paw/sdypp/docker-images/backend-rest/Dockerfile
+    hostname: back_rest_2
+    links:
+      - storage.db.1
+      - mq.balancer
+    
+  # Backend miner
+  miner.balancer:
+    image: "miner-balancer:latest"
+    hostname: miner_balancer
+    ports:
+      - "12002:80"
+    links:
+      - miner.rest.1
+      - miner.rest.2
+
+  miner.rest.1:
+    image: "miner-rest:latest"
+    build:
+      context: /home/paw/sdypp/api
+      dockerfile: /home/paw/sdypp/docker-images/miner-rest/Dockerfile
+    hostname: miner_rest_1
+    links:
+      - "storage.balancer"
+      - mq.balancer
+
+  miner.rest.2:
+    image: "miner-rest:latest"
+    build:
+      context: /home/paw/sdypp/api
+      dockerfile: /home/paw/sdypp/docker-images/miner-rest/Dockerfile
+    hostname: miner_rest_2
+    links:
+      - "storage.balancer"
+      - mq.balancer
+    
+  # Storage db  
+  storage.balancer:
+    image: "storage-balancer:latest"
+    hostname: storage_balancer
+    environment:
+      JOIN: storage.db.1
+    depends_on:
+      - storage.db.1
+      - storage.db.2
+      
+  storage.db.1:
+    image: "storage-db:latest"
+    hostname: storage_db_1
+    ports:
+      - "12003:8080"
+    environment:
+      JOIN: storage.db.1
+    volumes:
+      - ./data/st1:/data
+  
+  storage.db.2:
+    image: "storage-db:latest"
+    hostname: storage_db_2
+    links:
+      - storage.db.1
+    environment:
+      JOIN: storage.db.1
+    volumes:
+      - ./data/st2:/data
+
+  # Message queue 
+  mq.balancer:
+    image: "mq-balancer:latest"
+    hostname: mq_balancer
+    links:
+      - stats
+      - node1
+      - node2
+    ports:
+      - "12004:15672"
+      - "8181:8181"
+      - "5672:5672"
+
+  stats:
+    image: "bitnami/rabbitmq:latest"
+    environment:
+      - RABBITMQ_NODE_TYPE=stats
+      - RABBITMQ_NODE_NAME=rabbit@stats
+      - RABBITMQ_ERL_COOKIE=s3cr3tc00ki3
+      - RABBITMQ_USERNAME=sdypp
+      - RABBITMQ_PASSWORD=sdypp
+    volumes:
+      - './mq/rabbit1:/bitnami'
+      
+  node1:
+    image: "bitnami/rabbitmq:latest"
+    environment:
+      - RABBITMQ_NODE_TYPE=queue-disc
+      - RABBITMQ_NODE_NAME=rabbit@node1
+      - RABBITMQ_CLUSTER_NODE_NAME=rabbit@stats
+      - RABBITMQ_ERL_COOKIE=s3cr3tc00ki3
+    volumes:
+      - './mq/rabbit2:/bitnami'
+      
+  node2:
+    image: "bitnami/rabbitmq:latest"
+    environment:
+      - RABBITMQ_NODE_TYPE=queue-disc
+      - RABBITMQ_NODE_NAME=rabbit@node2
+      - RABBITMQ_CLUSTER_NODE_NAME=rabbit@stats
+      - RABBITMQ_ERL_COOKIE=s3cr3tc00ki3
+    volumes:
+     - './mq/rabbit3:/bitnami'
+     
+#ha-mode = exactly (string)
+#ha-params = 2 (number)
+#ha-sync-mode = automatic (string)

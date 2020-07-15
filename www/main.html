@@ -1,0 +1,325 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>BlockchaiNN</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="shortcut icon" href="../images/logo.png" type="image/x-icon"/>
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+		<div class="wrapper">
+			<section class="main">
+				<ul class="actions">
+					<li><a href="/login.html">Salir</a></li>
+					<li><a href="/miner.html">Minero</a></li>
+				</ul>
+				<div class="table-wrapper">
+					<table>
+						<thead>
+							<tr>
+								<th>MI BCU</th>
+								<th>SALDO</th>
+							</tr>
+						</thead>
+						<tbody>
+							<tr>
+								<td class="bcu"><strong data-st="bcu"></strong></td>
+								<td class="money"><span data-st="saldo"></span></td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+				<ul class="actions tabs">
+					<li><a href="tab-transferir" class="tab"><h2>Transferir</h2></a></li>
+					<li><a href="tab-pendientes" class="tab current"><h2>Pendientes</h2></a></li>
+					<li><a href="tab-historial" class="tab"><h2>Historial</h2></a></li>
+				</ul>
+			</section>
+			<section class="main tab hidden" id="tab-transferir">
+				<form method="post" id="tranfer">
+					<div id="message-box"></div>
+					<div class="fields">
+						<div class="field">
+							<label>Destino</label>
+							<input type="text" id="destino" placeholder="Destino">
+						</div>
+						<div class="field">
+							<label>Importe</label>
+							<input type="number" id="importe" placeholder="Importe">
+						</div>
+					</div>
+					<ul class="actions special">
+						<input type="submit" value="Transferir">
+					</ul>
+				</form>
+			</section>
+			<section class="main tab" id="tab-pendientes">
+				<div class="table-wrapper">
+					<table>
+						<thead>
+							<tr>
+								<th>ORIGEN</th>
+								<th>DESTINO</th>
+								<th>IMPORTE</th>
+								<th>ESTADO</th>
+							</tr>
+						</thead>
+						<tbody id="tranfers"></tbody>
+					</table>
+				</div>
+			</section>
+			<section class="main tab hidden" id="tab-historial"></section>
+		</div>
+
+    <!-- Scripts -->
+		<script>
+			if ('addEventListener' in window) {
+					window.addEventListener('load', function() { document.body.className = document.body.className.replace(/\bis-preload\b/, ''); });
+					document.body.className += (navigator.userAgent.match(/(MSIE|rv:11\.0)/) ? ' is-ie' : '');
+			}
+		</script>
+
+		<script src="assets/js/ui.js"></script>
+		<script>
+			const bcSdypp = new blockchain('https://sdypp.craving.com.ar/api/back/'),
+						tranferForm = document.getElementById('tranfer'),
+						messageBox = document.getElementById('message-box');
+						
+
+			tranferForm.addEventListener('submit', function(evt) {
+				evt.stopPropagation();
+				evt.preventDefault();
+				messageBox.classList.remove('success');
+				var dest = document.getElementById('destino').value.toLowerCase(),
+					imp = document.getElementById('importe').value;
+				if(!dest.match('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')){
+							messageBox.classList.add('error');
+						 	messageBox.innerHTML = 'Corrobore número de cuenta.';
+						 	return;
+						}
+				if(imp<0){
+					messageBox.classList.add('error');
+					messageBox.innerHTML = 'No puede realizar una transfencia negativa.';
+					return;
+				}
+				tranferForm.classList.add('loading');				
+				bcSdypp.addTranfer(localStorage.getItem('bc.bcu').toLowerCase(),
+													 document.getElementById('destino').value.toLowerCase(),
+													 document.getElementById('importe').value,
+												   localStorage.getItem('bc.token'))
+					.then(function(data) {
+						if (!Array.isArray(data) || (data.length == 0)) {
+							messageBox.classList.add('error');
+							if(!Array.isArray(data)){
+								messageBox.innerHTML = data.message;
+								return;
+							}
+							messageBox.innerHTML = 'Ocurrio un error al solicitar la transferencia.';
+							return;
+						}
+
+						messageBox.classList.remove('error');
+						messageBox.classList.add('success');
+						messageBox.innerHTML = 'Transferencia en camino.';
+						document.getElementById('destino').value = '';
+						document.getElementById('importe').value = '';
+					})
+					.then(function(data) {
+						tranferForm.classList.remove('loading');
+					});
+			});
+				
+			;(function displayTranfers() {
+				const div = document.getElementById('tranfers'),
+							tpl = '[tranferencias]' +
+										'<tr>' +										
+											'<td class="bcu">{origen}</td>' +
+											'<td class="bcu">{destino}</td>' +
+											'<td class="money"><span>{importe}</span></td>' +
+											'<td>{estado}</td>' +
+										'</tr>' +
+										'[/tranferencias]';
+								
+				function loadAndDisplay() {
+					bcSdypp.getTranfers(localStorage.getItem('bc.bcu').toLowerCase())
+						.then(function(tranfers) {
+							var curr = localStorage.getItem('bc.bcu').toLowerCase();
+							
+							tranfers = tranfers.map(function(tranfer) {
+								if (tranfer.origen == curr) {
+									tranfer.origen = '<strong>*-' + tranfer.origen.split('-').pop() + '</strong>';
+								} else {
+									tranfer.origen = '*-' + tranfer.origen.split('-').pop();
+								}
+								
+								if (tranfer.destino == curr) {
+									tranfer.destino = '<strong>*-' + tranfer.destino.split('-').pop() + '</strong>';
+								} else {
+									tranfer.destino = '*-' + tranfer.destino.split('-').pop();
+								}
+								
+								tranfer.estado = (tranfer.commit ? 'En proceso' : 'Pendiente');
+								
+								return tranfer;
+							});
+							
+							var newHTML = interpolate(tpl, { tranferencias: tranfers });
+							if (newHTML != div.innerHTML) {
+								div.innerHTML = newHTML;							
+							}
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();			
+			
+			;(function displayBlockchain() {
+				const div = document.getElementById('tab-historial'),
+							tpl = 	'[blockchain]' +
+									'<div class="table-wrapper">' +
+										'<table>' +
+											'<thead>' +
+												'<tr>' +
+													'<th>#</th>' +
+													'<th>FECHA</th>' +
+													'<th>NONCE</th>' +
+													'<th>HASH</th>' +
+												'</tr>' +
+											'</thead>' +
+											'<tbody>' +
+												'<tr>' +
+													'<td>{index}</td>' +
+													'<td>{fecha}</td>' +
+													'<td>{nonce}</td>' +
+													'<td>{hash}</td>' +
+												'</tr>' +
+											'</tbody>' +
+										'</table>' +									
+										'<table>' +
+											'<thead>' +
+												'<tr>' +
+													'<th>ORIGEN</th>' +
+													'<th>DESTINO</th>' +
+													'<th>IMPORTE</th>' +
+												'</tr>' +
+											'</thead>' +
+											'<tbody>' +
+												'[tranfers]' +
+												'<tr>' +
+													'<td class="bcu">{origen}</td>' +
+													'<td class="bcu">{destino}</td>' +
+													'<td class="money"><span>{importe}</span></td>' +
+												'</tr>' +
+												'[/tranfers]' +
+											'</tbody>' +
+										'</table>' +
+									'</div>' +
+									'[/blockchain]';
+								
+				function loadAndDisplay() {
+					bcSdypp.getBlockchain(localStorage.getItem('bc.bcu').toLowerCase())
+						.then(function(blockchain) {					
+							var curr = localStorage.getItem('bc.bcu').toLowerCase();
+
+							blockchain = blockchain.map(function(bc) {
+								bc.tranfers = bc.tranfers.map(function(tranfer) {
+									var trObj = {};
+									trObj.origen = '*-' + tranfer[0].split('-').pop();
+									trObj.destino = '*-' + tranfer[1].split('-').pop();
+									trObj.importe = tranfer[2];			
+									
+									if (trObj.origen == curr) {
+										trObj.origen = '<strong>*-' + trObj.origen.split('-').pop() + '</strong>';
+									} else {
+										trObj.origen = '*-' + trObj.origen.split('-').pop();
+									}
+									
+									if (trObj.destino == curr) {
+										trObj.destino = '<strong>*-' + trObj.destino.split('-').pop() + '</strong>';
+									} else {
+										trObj.destino = '*-' + trObj.destino.split('-').pop();
+									}
+
+									return trObj;
+								});
+								
+								bc.fecha = (new Date(bc.fecha)).toISOString();
+								
+								return bc;
+							});
+
+							var newHTML = interpolate(tpl, { blockchain: blockchain });
+							if ( newHTML != div.innerHTML ) {
+								div.innerHTML = newHTML;							
+							}
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();
+
+			;(function updateStatus() {								
+				function loadAndDisplay() {
+					bcSdypp.status(localStorage.getItem('bc.token'))
+						.then(function(status) {
+							status = status.shift();
+							
+							document.querySelectorAll('[data-st="saldo"]')
+								.forEach(function(st){
+									st.innerText = status.saldo;
+								});
+								
+							document.querySelectorAll('[data-st="bcu"]')
+								.forEach(function(st){
+									st.innerText = status.id;
+								});
+						})
+						.catch(function(e) {
+							console.error(e);
+						})
+						.then(function(acc) {
+							setTimeout(loadAndDisplay, 2500);
+						});
+				}
+				
+				loadAndDisplay();
+			})();		
+						
+			document.querySelectorAll('a.tab')
+				.forEach(function(tab) {
+					tab.addEventListener('click', function(evt) {
+						evt.preventDefault();
+						
+						document.querySelectorAll('.main.tab')
+							.forEach(function(tabSection) {
+								tabSection.classList.add('hidden');
+							});
+							
+						document.querySelectorAll('a.tab')
+							.forEach(function(tabSection) {
+								tabSection.classList.remove('current');
+							});
+							
+						document.querySelector('.main.tab#' + tab.getAttribute('href'))
+							.classList.remove('hidden');
+							
+						tab.classList.add('current');							
+					});
+				});
+		</script>
+	</body>
+</html>
