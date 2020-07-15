@@ -240,6 +240,15 @@ Para la construccion de la API, se utilizo el protocolo JSON, empleando la
 herramienta GSON[18].
 
 ### Software Mineros 
+Ambos mineros se basan en buscar un HASH que coincida con una serie de números especificos.
+Estos números son los llamados "desafíos", en nuestro caso, se le pide a los mineros que
+busquen aquel HASH que inicialice con una cantidad de desafios asignados, los cuales son 0. Dejamos un ejemplo
+para que se entienda mas claramente:
+	-Si el desafío es igual a 1, entonces el HASH tiene que basarse en que coincida solo el primer valor (0...);
+	-Si el desafío es igual a 4, el HASH tiene que coincidir con los primeros cuatro valores correspondientes (0000...);
+	-Si el desafío es igual a 10, debería conseguirse aquel HASH que coincida con los primeros diez números consecutivos (0000000000...).
+Y así sucesivamente, cabe destacar que a un mayor valor de desafío los tiempos crecen de manera exponencial, como se puede 
+ver en los gráficos ubicados más adelante en el documento.
 
 #### WebCrypto [CPU]
 En el caso de los mineros, se realizaron dos implementaciones, una basada en 
