@@ -15,7 +15,7 @@ Algo muy similar a un log de transacciones de una base de datos.
 Como se puede observar en la imagen, existe un orden y una secuencialidad en las operaciones que se registran en una blockchain, haciendo que, 
 si bien el contenido de cada bloque se puede generar de forma distribuida, su procesamiento deba ser centralizado.
 
-![](recursos/objetivo.png)
+![](recursos/obejtivo.png)
 
 El objetivo de este proyecto, es presentar un prototipo de arquitectura que permita paralelizar la generación de bloques, gráficamente sería algo así:
 La principal ventaja de esta arquitectura frente a las actuales, es que, si dos operaciones no son mutuamente excluyentes o secuenciales, pueden ser realizadas
@@ -38,7 +38,7 @@ en el server rabbitmq.
 El server de rabbitmq contiene las colas de operaciones pendientes y una cola para cada cuenta, sirviendo esto como herramienta de sincronización distribuida. 
 Los workers tendrán como función commitear los bloques, para esto hay dos funciones principales, la de armar los bloques y la de procesarlos, el creador lee de rabbitmq las operaciones pendientes y las encola en bloques, el procesador lee de la cola de bloques pendientes y las procesa utilizando CUDA para el cálculo de los challenge.
 
-![](recursos/estructura.png)
+![](recursos/arquitectura.png)
 
 ### Estructura de bloque 
 El primer paso lógico es decidir la estructura del bloque. Para mantener las cosas lo más simples posible, incluimos solo las necesarias: índice, marca de tiempo, datos,
